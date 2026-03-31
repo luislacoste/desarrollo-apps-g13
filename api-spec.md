@@ -197,6 +197,22 @@ Los tipos completos, ejemplos y códigos HTTP por operación están en **`api-sp
 
 ---
 
+## Códigos de retorno
+
+- 200 OK → consultas exitosas  
+- 201 Created → creación de recursos (registro, pujas, objetos)  
+- 204 No Content → eliminación o acciones sin respuesta  
+- 400 Bad Request → datos inválidos  
+- 401 Unauthorized → sin token o inválido  
+- 403 Forbidden → sin permisos (categoría insuficiente)  
+- 404 Not Found → recurso inexistente  
+- 409 Conflict → conflicto de negocio (ej: puja inválida)  
+- 422 Unprocessable Content → validaciones fallidas  
+- 429 Too Many Requests → rate limiting  
+- 500 Internal Server Error → error general  
+
+---
+
 ## Seguridad global
 
 - **bearerAuth:** HTTP Bearer, formato JWT (`components.securitySchemes.bearerAuth`).
