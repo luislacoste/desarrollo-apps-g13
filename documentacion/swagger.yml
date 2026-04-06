@@ -1,0 +1,1831 @@
+openapi: 3.0.3
+info:
+  title: HammerDrop API
+  version: 1.0.0
+  description: >
+    API REST del sistema de subastas en tiempo real: usuarios, subastas, pujas, artículos y pagos.
+
+    ### Autenticación
+    JWT. Enviar en cada request protegido:
+    ```
+    Authorization: Bearer <token>
+    ```
+
+    ### WebSocket (tiempo real)
+    ```
+    wss://api.hammerdrop.com/ws/auction/{auctionId}
+    ```
+
+    ### Categorías de usuario
+    | Categoría | Rol |
+    |-----------|-----|
+    | Común | Acceso básico a subastas públicas |
+    | Especial | Subastas especiales |
+    | Plata | Beneficios extra, límite de pujas mayor |
+    | Oro | Cheques certificados, subastas exclusivas |
+    | Platino | Acceso completo, sin límites de reglas estándar |
+  contact:
+    name: HammerDrop Support
+    email: api@hammerdrop.com
+
+servers:
+  # Added by API Auto Mocking Plugin
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/wapifirma/SubastAR/1.0.0
+  - url: https://api.hammerdrop.com/v1
+    description: Producción
+  - url: https://staging-api.hammerdrop.com/v1
+    description: Staging
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Autenticación y registro
+  - name: Users
+    description: Perfil del usuario
+  - name: Categories
+    description: Categorías de usuario
+  - name: Payment Methods
+    description: Medios de pago
+  - name: Auctions
+    description: Subastas
+  - name: Items
+    description: Artículos / piezas
+  - name: Bids
+    description: Pujas
+  - name: Sell Requests
+    description: Solicitudes de venta
+  - name: My Items
+    description: Artículos del usuario
+  - name: Favorites
+    description: Favoritos
+  - name: Notifications
+    description: Notificaciones
+  - name: Metrics
+    description: Métricas
+  - name: Payments
+    description: Pagos
+
+paths:
+  # ─── AUTH ──────────────────────────────────────────────────────────────────
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Registro inicial de usuario
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, firstName, lastName]
+              properties:
+                email:
+                  type: string
+                  format: email
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                domicilio:
+                  type: string
+                pais:
+                  type: string
+      responses:
+        "201":
+          description: Registro iniciado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: string
+                  message:
+                    type: string
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /auth/register/document:
+    post:
+      tags: [Auth]
+      summary: Subir documento de identidad
+      security: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [userId, document]
+              properties:
+                userId:
+                  type: string
+                document:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Documento recibido
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /auth/register/complete:
+    post:
+      tags: [Auth]
+      summary: Completar registro con contraseña
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, password]
+              properties:
+                userId:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        "200":
+          description: Registro completado
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Solicitar recuperación de contraseña
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "200":
+          description: Email de recuperación enviado
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Renovar token de acceso
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        "200":
+          description: Token renovado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── USERS ─────────────────────────────────────────────────────────────────
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Obtener perfil del usuario actual
+      responses:
+        "200":
+          description: Perfil del usuario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags: [Users]
+      summary: Actualizar perfil
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                phone:
+                  type: string
+                address:
+                  type: string
+                domicilio:
+                  type: string
+                pais:
+                  type: string
+      responses:
+        "200":
+          description: Perfil actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /users/me/metrics:
+    get:
+      tags: [Users]
+      summary: Métricas del usuario
+      responses:
+        "200":
+          description: Métricas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserMetrics"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /users/me/category:
+    get:
+      tags: [Users]
+      summary: Categoría actual y progreso
+      responses:
+        "200":
+          description: Categoría y progreso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  current:
+                    $ref: "#/components/schemas/UserCategory"
+                  next:
+                    $ref: "#/components/schemas/UserCategory"
+                  progress:
+                    type: number
+                    format: float
+                    minimum: 0
+                    maximum: 100
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── CATEGORIES ────────────────────────────────────────────────────────────
+
+  /categories:
+    get:
+      tags: [Categories]
+      summary: Listar categorías de usuario disponibles
+      security: []
+      responses:
+        "200":
+          description: Lista de categorías
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+
+  /categories/{id}:
+    get:
+      tags: [Categories]
+      summary: Detalle de una categoría
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Detalle de categoría
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── PAYMENT METHODS ───────────────────────────────────────────────────────
+
+  /payment-methods:
+    get:
+      tags: [Payment Methods]
+      summary: Listar medios de pago
+      responses:
+        "200":
+          description: Medios de pago del usuario
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PaymentMethod"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /payment-methods/bank-account:
+    post:
+      tags: [Payment Methods]
+      summary: Registrar cuenta bancaria
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bankName, accountNumber, accountType, cbu]
+              properties:
+                bankName:
+                  type: string
+                accountNumber:
+                  type: string
+                accountType:
+                  type: string
+                  enum: [savings, checking]
+                cbu:
+                  type: string
+      responses:
+        "201":
+          description: Cuenta bancaria registrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentMethod"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /payment-methods/credit-card:
+    post:
+      tags: [Payment Methods]
+      summary: Registrar tarjeta de crédito
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cardNumber, cardHolder, expiryDate, cvv]
+              properties:
+                cardNumber:
+                  type: string
+                cardHolder:
+                  type: string
+                expiryDate:
+                  type: string
+                  example: "12/27"
+                cvv:
+                  type: string
+      responses:
+        "201":
+          description: Tarjeta registrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentMethod"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /payment-methods/certified-check:
+    post:
+      tags: [Payment Methods]
+      summary: Registrar cheque certificado (Oro / Platino)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [checkNumber, bankName, amount, currency]
+              properties:
+                checkNumber:
+                  type: string
+                bankName:
+                  type: string
+                amount:
+                  type: number
+                currency:
+                  type: string
+                  example: ARS
+      responses:
+        "201":
+          description: Cheque certificado registrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentMethod"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /payment-methods/{id}:
+    delete:
+      tags: [Payment Methods]
+      summary: Eliminar medio de pago
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "204":
+          description: Eliminado correctamente
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /payment-methods/{id}/status:
+    get:
+      tags: [Payment Methods]
+      summary: Estado de verificación del medio de pago
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Estado de verificación
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, verified, rejected]
+                  message:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── AUCTIONS ──────────────────────────────────────────────────────────────
+
+  /auctions:
+    get:
+      tags: [Auctions]
+      summary: Listar subastas
+      security: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [scheduled, active, ended, cancelled]
+        - name: category
+          in: query
+          schema:
+            $ref: "#/components/schemas/UserCategory"
+        - name: currency
+          in: query
+          schema:
+            type: string
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - $ref: "#/components/parameters/QueryPage"
+        - $ref: "#/components/parameters/QueryLimit"
+      responses:
+        "200":
+          description: Lista paginada de subastas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Auction"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+
+  /auctions/active:
+    get:
+      tags: [Auctions]
+      summary: Subastas en vivo
+      security: []
+      responses:
+        "200":
+          description: Subastas activas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Auction"
+
+  /auctions/upcoming:
+    get:
+      tags: [Auctions]
+      summary: Próximas subastas
+      security: []
+      responses:
+        "200":
+          description: Subastas próximas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Auction"
+
+  /auctions/{id}:
+    get:
+      tags: [Auctions]
+      summary: Detalle de subasta
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Detalle de subasta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuctionDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /auctions/{id}/catalog:
+    get:
+      tags: [Auctions]
+      summary: Catálogo de la subasta
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Catálogo de ítems
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Item"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /auctions/{id}/join:
+    post:
+      tags: [Auctions]
+      summary: Unirse a una subasta
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Sesión de subasta creada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                  wsUrl:
+                    type: string
+                    example: wss://api.hammerdrop.com/ws/auction/123
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /auctions/{id}/stream:
+    get:
+      tags: [Auctions]
+      summary: URL de streaming de la subasta
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: URL de streaming
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  streamUrl:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── ITEMS ─────────────────────────────────────────────────────────────────
+
+  /items:
+    get:
+      tags: [Items]
+      summary: Listar artículos
+      security: []
+      parameters:
+        - name: auctionId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [available, sold, reserved]
+        - $ref: "#/components/parameters/QueryPage"
+        - $ref: "#/components/parameters/QueryLimit"
+      responses:
+        "200":
+          description: Lista paginada de artículos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Item"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+
+  /items/{id}:
+    get:
+      tags: [Items]
+      summary: Detalle del artículo (precio base solo para registrados)
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Detalle del artículo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /items/{id}/images:
+    get:
+      tags: [Items]
+      summary: Galería de imágenes del artículo
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Galería de imágenes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    url:
+                      type: string
+                    caption:
+                      type: string
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /items/{id}/history:
+    get:
+      tags: [Items]
+      summary: Historial de propietarios del artículo
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Historial de propietarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    owner:
+                      type: string
+                    from:
+                      type: string
+                      format: date
+                    to:
+                      type: string
+                      format: date
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── BIDS ──────────────────────────────────────────────────────────────────
+
+  /bids:
+    post:
+      tags: [Bids]
+      summary: Realizar una puja
+      description: >
+        Mínimo ~1% sobre la oferta actual. Máximo ~20% sobre el precio base
+        (excepto categorías Oro y Platino según reglas de negocio).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [auctionId, itemId, amount, currency]
+              properties:
+                auctionId:
+                  type: string
+                itemId:
+                  type: string
+                amount:
+                  type: number
+                currency:
+                  type: string
+      responses:
+        "201":
+          description: Puja realizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bid"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /bids/auction/{auctionId}:
+    get:
+      tags: [Bids]
+      summary: Pujas de una subasta
+      security: []
+      parameters:
+        - name: auctionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lista de pujas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bid"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bids/auction/{auctionId}/item/{itemId}/current:
+    get:
+      tags: [Bids]
+      summary: Puja actual del ítem
+      security: []
+      parameters:
+        - name: auctionId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Puja más alta actual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bid"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /bids/my:
+    get:
+      tags: [Bids]
+      summary: Mis pujas
+      responses:
+        "200":
+          description: Lista de pujas propias
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bid"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /bids/my/won:
+    get:
+      tags: [Bids]
+      summary: Pujas ganadas
+      responses:
+        "200":
+          description: Lista de pujas ganadas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bid"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── SELL REQUESTS ─────────────────────────────────────────────────────────
+
+  /sell/request:
+    post:
+      tags: [Sell Requests]
+      summary: Solicitar venta (mín. 6 imágenes, declaración de titularidad)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [images, ownershipDeclaration, title, description]
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                images:
+                  type: array
+                  minItems: 6
+                  items:
+                    type: string
+                    format: binary
+                ownershipDeclaration:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Solicitud de venta creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SellRequest"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /sell/my-requests:
+    get:
+      tags: [Sell Requests]
+      summary: Mis solicitudes de venta
+      responses:
+        "200":
+          description: Lista de solicitudes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SellRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /sell/my-requests/{id}:
+    get:
+      tags: [Sell Requests]
+      summary: Detalle de solicitud de venta
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Detalle de la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SellRequestDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /sell/my-requests/{id}/accept:
+    put:
+      tags: [Sell Requests]
+      summary: Aceptar condiciones de venta
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Condiciones aceptadas
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  # ─── MY ITEMS ──────────────────────────────────────────────────────────────
+
+  /my-items:
+    get:
+      tags: [My Items]
+      summary: Mis artículos
+      responses:
+        "200":
+          description: Lista de artículos propios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MyItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /my-items/{id}:
+    get:
+      tags: [My Items]
+      summary: Detalle de mi artículo
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Detalle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyItemDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /my-items/{id}/location:
+    get:
+      tags: [My Items]
+      summary: Ubicación en depósito
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Información de ubicación
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  warehouse:
+                    type: string
+                  zone:
+                    type: string
+                  shelf:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /my-items/{id}/insurance:
+    get:
+      tags: [My Items]
+      summary: Póliza de seguro del artículo
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Póliza de seguro
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  policyNumber:
+                    type: string
+                  insurer:
+                    type: string
+                  coverage:
+                    type: number
+                  currency:
+                    type: string
+                  expiresAt:
+                    type: string
+                    format: date
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── FAVORITES ─────────────────────────────────────────────────────────────
+
+  /favorites:
+    get:
+      tags: [Favorites]
+      summary: Listar favoritos
+      responses:
+        "200":
+          description: Ítems favoritos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Item"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /favorites/{itemId}:
+    post:
+      tags: [Favorites]
+      summary: Agregar a favoritos
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Agregado a favoritos
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      tags: [Favorites]
+      summary: Quitar de favoritos
+      parameters:
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Quitado de favoritos
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── NOTIFICATIONS ─────────────────────────────────────────────────────────
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Listar notificaciones
+      parameters:
+        - name: read
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Lista de notificaciones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /notifications/{id}/read:
+    put:
+      tags: [Notifications]
+      summary: Marcar notificación como leída
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Marcada como leída
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /notifications/settings:
+    get:
+      tags: [Notifications]
+      summary: Obtener configuración de notificaciones
+      responses:
+        "200":
+          description: Configuración actual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      tags: [Notifications]
+      summary: Actualizar configuración de notificaciones
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationSettings"
+      responses:
+        "200":
+          description: Configuración actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationSettings"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── METRICS ───────────────────────────────────────────────────────────────
+
+  /metrics/user/{userId}:
+    get:
+      tags: [Metrics]
+      summary: Métricas de un usuario
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Métricas del usuario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserMetrics"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /metrics/user/{userId}/auctions:
+    get:
+      tags: [Metrics]
+      summary: Participación en subastas de un usuario
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Historial de participación en subastas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    auctionId:
+                      type: string
+                    auctionTitle:
+                      type: string
+                    bidsCount:
+                      type: integer
+                    won:
+                      type: boolean
+                    totalSpent:
+                      type: number
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── PAYMENTS ──────────────────────────────────────────────────────────────
+
+  /payments/pending:
+    get:
+      tags: [Payments]
+      summary: Pagos pendientes
+      responses:
+        "200":
+          description: Lista de pagos pendientes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /payments/{id}:
+    get:
+      tags: [Payments]
+      summary: Detalle de pago
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      responses:
+        "200":
+          description: Detalle del pago
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /payments/{id}/pay:
+    post:
+      tags: [Payments]
+      summary: Procesar pago
+      parameters:
+        - $ref: "#/components/parameters/PathId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paymentMethodId]
+              properties:
+                paymentMethodId:
+                  type: string
+      responses:
+        "200":
+          description: Pago procesado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /payments/invoices:
+    get:
+      tags: [Payments]
+      summary: Mis facturas
+      responses:
+        "200":
+          description: Lista de facturas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+# ─── COMPONENTS ──────────────────────────────────────────────────────────────
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PathId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    QueryPage:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    QueryLimit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  responses:
+    BadRequest:
+      description: Datos inválidos
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Sin token o token inválido
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Forbidden:
+      description: Sin permisos (categoría insuficiente)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: Conflicto de negocio
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    UnprocessableEntity:
+      description: Validaciones fallidas
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    TooManyRequests:
+      description: Rate limiting
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+    UserCategory:
+      type: string
+      enum: [comun, especial, plata, oro, platino]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        domicilio:
+          type: string
+        pais:
+          type: string
+        category:
+          $ref: "#/components/schemas/UserCategory"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UserMetrics:
+      type: object
+      properties:
+        userId:
+          type: string
+        auctionsParticipated:
+          type: integer
+        totalBids:
+          type: integer
+        totalSpent:
+          type: number
+        itemsWon:
+          type: integer
+        rating:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 5
+
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          $ref: "#/components/schemas/UserCategory"
+        benefits:
+          type: array
+          items:
+            type: string
+        requirements:
+          type: object
+          properties:
+            minSpent:
+              type: number
+            minAuctions:
+              type: integer
+
+    PaymentMethod:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [credit_card, bank_account, certified_check]
+        label:
+          type: string
+        status:
+          type: string
+          enum: [pending, verified, rejected]
+        createdAt:
+          type: string
+          format: date-time
+
+    Auction:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum: [scheduled, active, ended, cancelled]
+        category:
+          $ref: "#/components/schemas/UserCategory"
+        currency:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        itemCount:
+          type: integer
+        thumbnailUrl:
+          type: string
+
+    AuctionDetail:
+      allOf:
+        - $ref: "#/components/schemas/Auction"
+        - type: object
+          properties:
+            description:
+              type: string
+            rules:
+              type: string
+            streamUrl:
+              type: string
+            location:
+              type: string
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Item"
+
+    Item:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [available, sold, reserved]
+        thumbnailUrl:
+          type: string
+        auctionId:
+          type: string
+
+    ItemDetail:
+      allOf:
+        - $ref: "#/components/schemas/Item"
+        - type: object
+          properties:
+            basePrice:
+              type: number
+            currency:
+              type: string
+            currentBid:
+              type: number
+            images:
+              type: array
+              items:
+                type: string
+            category:
+              type: string
+            year:
+              type: integer
+            origin:
+              type: string
+
+    Bid:
+      type: object
+      properties:
+        id:
+          type: string
+        auctionId:
+          type: string
+        itemId:
+          type: string
+        userId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [pending, accepted, rejected, won, outbid]
+        createdAt:
+          type: string
+          format: date-time
+
+    SellRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum: [pending, reviewing, approved, rejected, accepted]
+        createdAt:
+          type: string
+          format: date-time
+
+    SellRequestDetail:
+      allOf:
+        - $ref: "#/components/schemas/SellRequest"
+        - type: object
+          properties:
+            description:
+              type: string
+            images:
+              type: array
+              items:
+                type: string
+            conditions:
+              type: string
+            estimatedValue:
+              type: number
+            currency:
+              type: string
+
+    MyItem:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+        thumbnailUrl:
+          type: string
+
+    MyItemDetail:
+      allOf:
+        - $ref: "#/components/schemas/MyItem"
+        - type: object
+          properties:
+            description:
+              type: string
+            images:
+              type: array
+              items:
+                type: string
+            auctionId:
+              type: string
+            salePrice:
+              type: number
+            currency:
+              type: string
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    NotificationSettings:
+      type: object
+      properties:
+        email:
+          type: boolean
+        push:
+          type: boolean
+        sms:
+          type: boolean
+        bidUpdates:
+          type: boolean
+        auctionReminders:
+          type: boolean
+        paymentAlerts:
+          type: boolean
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+        itemId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        dueDate:
+          type: string
+          format: date
+
+    PaymentDetail:
+      allOf:
+        - $ref: "#/components/schemas/Payment"
+        - type: object
+          properties:
+            breakdown:
+              type: object
+              properties:
+                baseAmount:
+                  type: number
+                commission:
+                  type: number
+                taxes:
+                  type: number
+            paymentMethodId:
+              type: string
+            paidAt:
+              type: string
+              format: date-time
+
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: string
+        paymentId:
+          type: string
+        number:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        issuedAt:
+          type: string
+          format: date-time
+        downloadUrl:
+          type: string
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+
+    WebSocketEvent:
+      type: object
+      properties:
+        event:
+          type: string
+          enum:
+            [bid_placed, bid_accepted, item_sold, auction_ended, item_changed]
+        auctionId:
+          type: string
+        itemId:
+          type: string
+        data:
+          type: object
