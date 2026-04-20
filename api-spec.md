@@ -1,10 +1,8 @@
-# HammerDrop API
+# SubastAR API
 
 **Versión OpenAPI:** 3.0.3 · **API:** 1.0.0
 
 Documentación en Markdown equivalente a [`api-spec.ts`](./api-spec.ts). La UI interactiva sigue en la app: **`/api-docs`** (lee el objeto TypeScript).
-
-**Contacto:** HammerDrop Support — api@hammerdrop.com
 
 ---
 
@@ -20,32 +18,9 @@ JWT. Enviar en cada request protegido:
 Authorization: Bearer <token>
 ```
 
-### Categorías de usuario
-
-| Categoría | Rol |
-|-----------|-----|
-| Común | Acceso básico a subastas públicas |
-| Especial | Subastas especiales |
-| Plata | Beneficios extra, límite de pujas mayor |
-| Oro | Cheques certificados, subastas exclusivas |
-| Platino | Acceso completo, sin límites de reglas estándar |
-
-### WebSocket (tiempo real)
-
-```text
-wss://api.hammerdrop.com/ws/auction/{auctionId}
-```
 
 ---
 
-## Servidores
-
-| URL | Entorno |
-|-----|---------|
-| `https://api.hammerdrop.com/v1` | Producción |
-| `https://staging-api.hammerdrop.com/v1` | Staging |
-
----
 
 ## Endpoints por tag
 

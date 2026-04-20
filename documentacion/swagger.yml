@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: HammerDrop API
+  title: SubastAR API
   version: 1.0.0
   description: >
     API REST del sistema de subastas en tiempo real: usuarios, subastas, pujas, artículos y pagos.
@@ -13,7 +13,7 @@ info:
 
     ### WebSocket (tiempo real)
     ```
-    wss://api.hammerdrop.com/ws/auction/{auctionId}
+    wss://api.subastar.com/ws/auction/{auctionId}
     ```
 
     ### Categorías de usuario
@@ -25,16 +25,16 @@ info:
     | Oro | Cheques certificados, subastas exclusivas |
     | Platino | Acceso completo, sin límites de reglas estándar |
   contact:
-    name: HammerDrop Support
-    email: api@hammerdrop.com
+    name: SubastAR Support
+    email: api@subastar.com
 
 servers:
   # Added by API Auto Mocking Plugin
   - description: SwaggerHub API Auto Mocking
     url: https://virtserver.swaggerhub.com/wapifirma/SubastAR/1.0.0
-  - url: https://api.hammerdrop.com/v1
+  - url: https://api.subastar.com/v1
     description: Producción
-  - url: https://staging-api.hammerdrop.com/v1
+  - url: https://staging-api.subastar.com/v1
     description: Staging
 
 security:
@@ -666,7 +666,7 @@ paths:
                     type: string
                   wsUrl:
                     type: string
-                    example: wss://api.hammerdrop.com/ws/auction/123
+                    example: wss://api.subastar.com/ws/auction/123
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
