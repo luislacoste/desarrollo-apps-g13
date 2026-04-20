@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>SubastAR</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+    }
+
+    body {
+      background: #146C94;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh; /* dynamic viewport height — accounts for mobile browser chrome */
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+    }
+
+    /* ── background rings ── */
+    .ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 2px solid rgba(175, 211, 226, 0.25);
+      transform: scale(0);
+      opacity: 0;
+    }
+    .ring-1 { width: min(220px, 55vw);  height: min(220px, 55vw); }
+    .ring-2 { width: min(360px, 90vw);  height: min(360px, 90vw); }
+    .ring-3 { width: min(520px, 130vw); height: min(520px, 130vw); }
+
+    /* ── logo wrapper ── */
+    .logo-wrap {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(16px, 4vw, 28px);
+      opacity: 0;
+      padding: 0 24px;
+    }
+
+    .logo-img {
+      width: clamp(90px, 28vw, 140px);
+      height: clamp(90px, 28vw, 140px);
+      object-fit: contain;
+      filter: drop-shadow(0 8px 24px rgba(0,0,0,0.45));
+    }
+
+    /* ── app name ── */
+    .app-name {
+      color: #F6F1F1;
+      font-size: clamp(1.5rem, 7vw, 2.2rem);
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      opacity: 0;
+      clip-path: inset(0 100% 0 0);
+      white-space: nowrap;
+    }
+
+    /* ── tagline ── */
+    .tagline {
+      color: #AFD3E2;
+      font-size: clamp(0.65rem, 2.5vw, 0.85rem);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      opacity: 0;
+      text-align: center;
+    }
+
+    /* ── spinner ── */
+    .spinner {
+      position: absolute;
+      bottom: max(40px, env(safe-area-inset-bottom, 40px) + 24px);
+      width: clamp(26px, 6vw, 34px);
+      height: clamp(26px, 6vw, 34px);
+      border: 3px solid rgba(175, 211, 226, 0.2);
+      border-top-color: #AFD3E2;
+      border-radius: 50%;
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- background rings -->
+  <div class="ring ring-1"></div>
+  <div class="ring ring-2"></div>
+  <div class="ring ring-3"></div>
+
+  <!-- logo block -->
+  <div class="logo-wrap">
+    <div style="position:relative;">
+      <img class="logo-img" src="assests/icono-png.png" alt="SubastAR logo" />
+    </div>
+    <div class="app-name">SubastAR</div>
+    <div class="tagline">Subastas en tiempo real</div>
+  </div>
+
+  <!-- spinner -->
+  <div class="spinner"></div>
+
+<script>
+  const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+  // 1 — page bg fades in
+  tl.from("body", { backgroundColor: "#0a3d54", duration: 1.2 })
+
+  // 2 — ripple rings expand outward
+  .to(".ring-1", { scale: 1, opacity: 1, duration: 1.4, ease: "back.out(1.4)" }, 0.2)
+  .to(".ring-2", { scale: 1, opacity: 0.7, duration: 1.8, ease: "back.out(1.2)" }, 0.5)
+  .to(".ring-3", { scale: 1, opacity: 0.4, duration: 2.2, ease: "back.out(1)" }, 0.8)
+
+  // 3 — logo wrapper drops in
+  .to(".logo-wrap", { opacity: 1, duration: 0.01 }, 0.6)
+  .from(".logo-img", {
+    y: -80,
+    scale: 0.4,
+    rotation: -15,
+    duration: 1.6,
+    ease: "back.out(2.2)"
+  }, 0.6)
+
+  // 4 — hammer "impact" bounce
+  .to(".logo-img", { y: 6, duration: 0.18, ease: "power2.in" }, 2.1)
+  .to(".logo-img", { y: 0, duration: 0.6, ease: "elastic.out(1.2, 0.4)" }, 2.28)
+
+  // 5 — app name reveal (clip-path wipe)
+  .to(".app-name", { opacity: 1, clipPath: "inset(0 0% 0 0)", duration: 1.1, ease: "power2.out" }, 2.5)
+
+  // 6 — tagline fade up
+  .to(".tagline", { opacity: 1, y: 0, duration: 0.9 }, 3.2)
+  .from(".tagline", { y: 10 }, 3.2)
+
+  // 7 — spinner fade in + spin
+  .to(".spinner", { opacity: 1, duration: 0.6 }, 3.7)
+  .to(".spinner", { rotation: 360, duration: 2.2, repeat: -1, ease: "none" }, 3.8)
+
+  // 8 — rings pulse gently
+  .to(".ring-1, .ring-2, .ring-3", {
+    scale: "+=0.04",
+    opacity: "-=0.1",
+    duration: 2.2,
+    repeat: -1,
+    yoyo: true,
+    ease: "sine.inOut",
+    stagger: 0.4
+  }, 4.5)
+
+  // optional exit: uncomment to auto-dismiss after ~4 s
+  // .to("body", { opacity: 0, duration: 0.5, delay: 1.5 }, 3.2);
+</script>
+</body>
+</html>

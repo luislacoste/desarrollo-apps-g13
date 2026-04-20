@@ -1,0 +1,23 @@
+Wireframes
+- login (1)           ---> listo
+- register (5)        ---> listo
+- home (1)            ---> listo
+- catalog (1)         ---> listo
+- auction (1)         ---> listo
+- item (1)            ---> listo
+- profile (1)         ---> listo
+- payment (1)         ---> listo
+- notifications (1)   ---> listo
+
+Pendientes:
+- Mis compras           ---> Falta: Lista de items que compramos
+- Configuracion         ---> Falta: aca no mucho, modo oscuro... modificar nombre
+- Ayuda                 ---> copyright... version... terminos y condiciiones
+- Categorias            ---> 
+- Agregar Tarjeta       
+- Cuenta bancaria       ---> podriamos ignorarlo
+- Cheque certificado    ---> podriamos ignorarlo
+
+UNA SUBASTA PUEDE TENER MUCHOS ITEMS
+SE PUEDEN SUBASTAR TODOS AL MISMO TIEMPO
+LA SUBASTA LA GENERA UN SOLO VENDEDOR
